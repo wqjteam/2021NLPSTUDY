@@ -93,3 +93,7 @@ def viterbi(x, pai, A, B):
     # 到目前为止 best_seq存放了对应x的词性序列
     for i in range(len(best_seq)):
         print(id2tag[best_seq[i]])
+
+
+x = "Social Security number , passport number and details about the services provided for the payment"
+viterbi(x, pi, A, B)
