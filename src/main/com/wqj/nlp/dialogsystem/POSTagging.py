@@ -96,4 +96,4 @@ def viterbi(x, pai, A, B):
 
 
 x = "Social Security number , passport number and details about the services provided for the payment"
-viterbi(x, pi, A, B)
+viterbi(x, pai, A, B)
