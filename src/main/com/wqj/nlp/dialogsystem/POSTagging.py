@@ -82,7 +82,7 @@ def viterbi(x, pai, A, B):
                 if score > dp[i][j]:
                     dp[i][j] = score
                     ptr[i][j] = k
-
+ 
     # 把最好的sequence打印出来
     best_seq = [0] * T  # best_seq=[1,5,3,5...,16]
     # step1：找出对饮最后一个单词的词性
