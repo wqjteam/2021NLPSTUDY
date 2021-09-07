@@ -5,6 +5,7 @@ import random
 from collections import Counter
 
 
+# 模型构造
 class SkipGramNeg(nn.Module):
     def __init__(self, n_vocab, n_embed, noise_dist=None):
         super().__init__()
@@ -31,10 +32,10 @@ class SkipGramNeg(nn.Module):
         return output_vectors
 
     def forward_noise(self, batch_size, n_samples):
-        if self.noise_dist is None: #如果没有初始化的噪声，所有单词进行等概率的采样
+        if self.noise_dist is None:  # 如果没有初始化的噪声，所有单词进行等概率的采样 ,就是附每个位置单词被采样的概率
             noise_dist = torch.ones(self.n_vocab)
         else:
             noise_dist = self.noise_dist
-        noise_words = torch.multinomial(noise_dist,batch_size*n_samples,replacement=True)
-        noise_dist= self.out_embed(noise_words).view(batch_size,n_samples,self.n_embed)
-        return output_vectors
+        noise_words = torch.multinomial(noise_dist, batch_size * n_samples, replacement=True)
+        noise_vectors = self.out_embed(noise_words).view(batch_size, n_samples, self.n_embed)
+        return noise_vectors

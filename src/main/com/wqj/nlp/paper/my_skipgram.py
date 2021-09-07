@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch import nn, optim
 import random
+from src.main.com.wqj.nlp.paper import SkipGramNeg
+from src.main.com.wqj.nlp.paper import NegativeSamplingLoss
 from collections import Counter
 
 # 读取文件，先去掉低频词
@@ -65,6 +67,38 @@ def get_batch(words, batch_size, window_size):
         yield
 
 
+# 负采样公式  负采样的单词分布
+word_freqs = np.array(word_freqs.values())
+unigram_dist = word_freqs / word_freqs.sum()
+noise_dist = torch.from_numpy(unigram_dist ** (0.75) / np.sum(unigram_dist ** (0.75)))
 
-# 构造具体的网络
+# 模型训练
 
+embedding_dim = 300
+model = SkipGramNeg(len(vocab2int), embedding_dim, noise_dist=noise_dist)
+
+criterion = NegativeSamplingLoss()
+optimizer = optim.Adam(model.parameters, lr=0.001)
+
+print_every = 1500
+step = 0
+epochs = 5
+batch_size = 500
+n_samples = 5
+
+for e in range(epochs):
+    for input_words, target_words in get_batch(train_words, batch_size):
+        step += 1
+        inputs, targets = torch.LongTensor(input_words), torch.LongTensor(target_words)
+
+        input_vectors = model.forward_input(inputs)
+        output_vectors = model.forward_output(targets)
+        noise_vectors = model.forward_noise(batch_size, n_samples)
+
+        loss = criterion(input_vectors, output_vectors, noise_vectors)
+
+        if step//print_every== 0:
+            print(loss)
+        optimizer.zero_grad()
+        loss.backword()
+        optimizer.step()
