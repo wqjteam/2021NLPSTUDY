@@ -41,7 +41,7 @@ for i in range(1, stateMartix.shape[0]):
                 if ((stateMartix[i - 1][y] + investMartix[i][j - y]) > maxmoney):
                     maxmoney = stateMartix[i - 1][y] + investMartix[i][j - y]
                     # statepermutationMartix[i][j] = set(tuple())
-                    statepermutationMartix[i][j].clear() # 存储的时候 （上一层自循环的投资额，当前工厂投资额）
+                    statepermutationMartix[i][j].clear()  # 存储的时候 （上一层自循环的投资额，当前工厂投资额）
                     statepermutationMartix[i][j].add((y, j - y))
 
                     stateMartix[i][j] = maxmoney
@@ -54,3 +54,4 @@ print(statepermutationMartix)
 # print(np.array(statepermutationMartix))
 print("状态矩阵")
 print(stateMartix)
+
