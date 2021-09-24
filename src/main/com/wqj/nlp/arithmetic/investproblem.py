@@ -50,7 +50,7 @@ for i in range(1, stateMartix.shape[0]):
                     statepermutationMartix[i][j].add((y, j - y))
 
 print("状态组合矩阵")
-print(statepermutationMartix)
+print(np.array(statepermutationMartix))
 # print(np.array(statepermutationMartix))
 print("状态矩阵")
 print(stateMartix)
