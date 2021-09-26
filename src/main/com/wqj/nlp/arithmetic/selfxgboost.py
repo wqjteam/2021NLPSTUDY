@@ -23,7 +23,7 @@ data.columns = boston.feature_names
 # 目标值
 data['PRICE'] = boston.target
 
-print(data.describe())
+# print(data.describe())
 
 X, y = data.iloc[:, :-1], data.iloc[:, -1]
 
@@ -46,3 +46,13 @@ preds = xg_reg.predict(X_test)
 rmse = np.sqrt(mean_squared_error(y_test, preds))
 print("RMSE: %f" % (rmse))
 
+
+# 进行k-fold交叉验证
+params = {"objective":"reg:linear",'colsample_bytree': 0.3,'learning_rate': 0.1,
+                'max_depth': 5, 'alpha': 10}
+
+cv_results = xgb.cv(dtrain=data_dmatrix, params=params, nfold=3,
+                    num_boost_round=50,early_stopping_rounds=10,metrics="rmse", as_pandas=True, seed=123)
+
+print("--------------------cv_result----------------------")
+cv_results.head()
