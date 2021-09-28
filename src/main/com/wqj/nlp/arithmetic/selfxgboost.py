@@ -4,6 +4,7 @@ import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 boston = load_boston()
@@ -56,3 +57,17 @@ cv_results = xgb.cv(dtrain=data_dmatrix, params=params, nfold=3,
 
 print("--------------------cv_result----------------------")
 cv_results.head()
+
+print((cv_results["test-rmse-mean"]).tail(1))
+
+
+# 使用可视化
+xg_reg = xgb.train(params=params, dtrain=data_dmatrix, num_boost_round=10)
+xgb.plot_tree(xg_reg,num_trees=0)
+plt.rcParams['figure.figsize'] = [50, 10]
+plt.show()
+
+
+xgb.plot_importance(xg_reg)
+plt.rcParams['figure.figsize'] = [5, 5]
+plt.show()
