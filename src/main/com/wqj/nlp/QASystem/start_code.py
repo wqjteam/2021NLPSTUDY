@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 import nltk
 from nltk.corpus import stopwords
+from nltk.corpus import wordnet
+from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn import
+
+# from sklearn import
 
 # nltk.download('punkt')
 """
@@ -77,6 +80,8 @@ a_dict = get_dict(alist)
 文本预处理
 """
 
+lemmatizer = WordNetLemmatizer()  # 词法提取器
+
 
 def isChinese(word):
     for ch in word:
@@ -89,42 +94,56 @@ def preProcess(list_seq, quertion=True):
     # possession 是财产的意思，拥有
     # 去除停用词
     # 只有英文才有停用词库
+
+    setk = set()
+    if (quertion):
+        setk = get_topk(10, dict(sorted(q_dict.items(), key=lambda item: item[1], reverse=False)))
+    else:
+        setk = get_topk(10, dict(sorted(a_dict.items(), key=lambda item: item[1], reverse=False)))
+    setstop = set(stopwords.words('english'))
+    returnlistseq = []
+    add_index = 0
     for list_index in range(len(list_seq)):
-        disease_List = nltk.word_tokenize(list_seq[list_index])
-        filtered = [w.lower() for w in disease_List if (w not in (stopwords.words('english') and '!'))]
+        pos_tokens = nltk.pos_tag(nltk.word_tokenize(list_seq[list_index]))
+        filtered = []
 
-        listk = []
-        if (quertion):
-            listk = get_topk(10, dict(sorted(q_dict.items(), key=lambda item: item[1], reverse=False)))
-        else:
-            listk = get_topk(10, dict(sorted(a_dict.items(), key=lambda item: item[1], reverse=False)))
-        filtered = [w for w in filtered if (w not in listk)]
-        # 处理单词中数字
-        index = 0
-        for item in filtered:
-            if (str.isdigit(item)):
-                filtered.insert(index, "#NUM")
-                filtered.pop(index + 1)
-            index = index + 1
-        list_seq[list_index] = filtered
-    return list_seq
+        for w, pos in pos_tokens:
+            if w.lower in setk or w.lower in setstop: continue
+            if pos == 'CD':
+                filtered.append("#NUM")
+            else:
+                if w.find('?') != -1:
+                    w.append(w.replace('?', ''))
+                my_pos = get_wordnet_pos(pos)
+                if my_pos:
+                    # 由于是英文，词太多变，需要转化成原始的词态，在保存
+                    # 英语的预处理基本有两种方法 stemming（词干提取，例如规则提取 会有问题） 和 lemmatisation（词性还原）
+                    filtered.append(lemmatizer.lemmatize(w, my_pos))
+                else:
+                    filtered.append(lemmatizer.lemmatize(w))
 
-
-qlist = preProcess(qlist)
-# alist = preProcess(alist, False)
-
-"""
-文本表示
-"""
-vectorizer = TfidfVectorizer().fit(qlist)
-# 使用parse martix的方法来表示 内存占会小很多
-
-# 计算稀疏度
-sparsity = np.divide(np.prod(vectorizer.shape) - len(vectorizer.nonzero()), np.prod(vectorizer.shape))
-
-print(sparsity)
+        returnlistseq.append(' '.join(filtered).lower())
+    return returnlistseq
 
 
+# 提取词性
+def get_wordnet_pos(self, treebank_tag):
+    """
+        Convert treebank pos to wordnet pos
+    :param self:
+    :param treebank_tag:
+    :return:
+    """
+    if treebank_tag.startwith('J'):
+        return wordnet.ADJ
+    elif treebank_tag.startwith('V'):
+        return wordnet.VERB
+    elif treebank_tag.startwith('N'):
+        return wordnet.NOUN
+    elif treebank_tag.startwith('R'):
+        return wordnet.ADV
+    else:
+        return ''
 
 
 """
@@ -139,12 +158,28 @@ def top5results(input_q):
        2. 计算跟每个库里的问题之间的相似度
        3. 找出相似度最高的top5问题的答案
        """
-    text_normalizer.normalize_text(input_q)
+    q_vec= TfidfVectorizer.transform([preProcess(input_q)]).todense()
     top_idxs = []  # top_idxs存放相似度最高的（存在qlist里的）问题的下表
     # hint: 利用priority queue来找出top results. 思考为什么可以这么做？
 
     return alist[top_idxs]  # 返回相似度最高的问题对应的答案，作为TOP5答案
 
+
+qlist = preProcess(qlist)
+# alist = preProcess(alist, False)
+# 再次处理成array_str
+
+
+"""
+文本表示
+"""
+vectorizer = TfidfVectorizer().fit(qlist)
+# 使用parse martix的方法来表示 内存占会小很多
+
+# 计算稀疏度
+sparsity = np.divide(np.prod(vectorizer.shape) - len(vectorizer.nonzero()), np.prod(vectorizer.shape))
+
+print(sparsity)
 
 # TODO: 编写几个测试用例，并输出结果
 print(top5results(""))
