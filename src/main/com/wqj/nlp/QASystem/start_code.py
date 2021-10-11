@@ -113,7 +113,7 @@ def preProcess(list_seq, quertion=True):
                 filtered.append("#NUM")
             else:
                 if w.find('?') != -1:
-                    w.append(w.replace('?', ''))
+                    w = w.replace('?', '')
                 my_pos = get_wordnet_pos(pos)
                 if my_pos:
                     # 由于是英文，词太多变，需要转化成原始的词态，在保存
@@ -127,20 +127,20 @@ def preProcess(list_seq, quertion=True):
 
 
 # 提取词性
-def get_wordnet_pos(self, treebank_tag):
+def get_wordnet_pos(treebank_tag):
     """
         Convert treebank pos to wordnet pos
     :param self:
     :param treebank_tag:
     :return:
     """
-    if treebank_tag.startwith('J'):
+    if treebank_tag.startswith('J'):
         return wordnet.ADJ
-    elif treebank_tag.startwith('V'):
+    elif treebank_tag.startswith('V'):
         return wordnet.VERB
-    elif treebank_tag.startwith('N'):
+    elif treebank_tag.startswith('N'):
         return wordnet.NOUN
-    elif treebank_tag.startwith('R'):
+    elif treebank_tag.startswith('R'):
         return wordnet.ADV
     else:
         return ''
@@ -151,16 +151,23 @@ def get_wordnet_pos(self, treebank_tag):
 """
 
 
-def top5results(input_q):
+def top5results(input_q,vectorizer):
     """
        给定用户输入的问题 input_q, 返回最有可能的TOP 5问题。这里面需要做到以下几点：
        1. 对于用户的输入 input_q 首先做一系列的预处理，然后再转换成tf-idf向量（利用上面的vectorizer)
        2. 计算跟每个库里的问题之间的相似度
        3. 找出相似度最高的top5问题的答案
        """
-    q_vec= TfidfVectorizer.transform([preProcess(input_q)]).todense()
+    q_vec = TfidfVectorizer().transform([preProcess(input_q)]).todense()
     top_idxs = []  # top_idxs存放相似度最高的（存在qlist里的）问题的下表
     # hint: 利用priority queue来找出top results. 思考为什么可以这么做？
+    # for i in range(q_vec.shape[0]):
+    #     similarity=1-np.cos(vectorizer[i,:].todense(),q_vec)
+    #     similarity=0 if np.isnan(similarity) else similarity
+    num = np.dot([q_vec], np.array(vectorizer).T)  # 向量点乘
+    denom = np.linalg.norm([q_vec]) * np.linalg.norm(vectorizer, axis=1)  # 求模长的乘积
+    res = num / denom
+    res[np.isneginf(res)] = 0
 
     return alist[top_idxs]  # 返回相似度最高的问题对应的答案，作为TOP5答案
 
@@ -173,12 +180,11 @@ qlist = preProcess(qlist)
 """
 文本表示
 """
-vectorizer = TfidfVectorizer().fit(qlist)
+vectorizer = TfidfVectorizer().fit_transform(qlist)
 # 使用parse martix的方法来表示 内存占会小很多
 
 # 计算稀疏度
 sparsity = np.divide(np.prod(vectorizer.shape) - len(vectorizer.nonzero()), np.prod(vectorizer.shape))
-
 print(sparsity)
 
 # TODO: 编写几个测试用例，并输出结果
