@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 from bert4keras.backend import K, search_layer
 from bert4keras.models import build_transformer_model
 from bert4keras.optimizers import Adam
@@ -12,25 +13,29 @@ from sklearn.model_selection import StratifiedKFold
 
 np.random.seed(2020)
 
-train_df = pd.read_csv('../data/Dataset/train.csv')
-valid_df = pd.read_csv('../data/Dataset/dev.csv')
-test_df = pd.read_csv('../data/Dataset/test.csv')
-train_ext_df = pd.read_csv('../data/External/chip2019.csv')
+curPath = os.path.abspath(os.path.dirname(__file__))
+rootPath = curPath[:curPath.find("2021NLPSTUDY\\") + len("2021NLPSTUDY\\")]
+train_df = pd.read_csv(rootPath + '/input/competitiondata/sentencerelative/train_20200228 (1).csv')
+valid_df = pd.read_csv(rootPath + '/input/competitiondata/sentencerelative/dev_20200228.csv')
+test_df = pd.read_csv(rootPath + '/input/competitiondata/sentencerelative/test.example_20200228.csv')
+train_ext_df = pd.read_csv(rootPath + '/input/competitiondata/sentencerelative/test.pred.example_20200228.csv')
 
-train_df.dropna(axis=0,inplace=True)
+train_df.dropna(axis=0, inplace=True)
 
-train_data = train_df[['query1','query2','label']].values
-valid_data = valid_df[['query1','query2','label']].values
-test_data = test_df[['query1','query2','label']].values
-train_ext_data = train_ext_df[['question1','question2','label']].values
+train_data = train_df[['query1', 'query2', 'label']].values
+valid_data = valid_df[['query1', 'query2', 'label']].values
+test_data = test_df[['query1', 'query2', 'label']].values
+# train_ext_data = train_ext_df[['question1','question2','label']].values
 
-train_ext_data = np.concatenate([train_data, train_ext_data], axis = 0)
+# train_ext_data = np.concatenate([train_data, train_ext_data], axis = 0)
+train_ext_data = train_data
+
 
 def build_model(mode='bert', filename='bert', lastfour=False, LR=1e-5, DR=0.2):
-    path = '../data/External/'+filename+'/'
-    config_path = path+'bert_config.json'
-    checkpoint_path = path+'bert_model.ckpt'
-    dict_path = path+'vocab.txt'
+    path = rootPath+'/input/competitiondata/sentencerelative' + filename + '/'
+    config_path = path + 'bert_config.json'
+    checkpoint_path = path + 'bert_model.ckpt'
+    dict_path = path + 'vocab.txt'
 
     global tokenizer
     tokenizer = Tokenizer(dict_path, do_lower_case=True)
@@ -77,6 +82,7 @@ def build_model(mode='bert', filename='bert', lastfour=False, LR=1e-5, DR=0.2):
     )
     return model
 
+
 class data_generator(object):
     def __init__(self, data, batch_size=32, random=True):
         self.data = data
@@ -112,6 +118,7 @@ class data_generator(object):
             for d in self.__iter__(self.random):
                 yield d
 
+
 def adversarial_training(model, embedding_name, epsilon=1):
     """给模型添加对抗训练
     其中model是需要添加对抗训练的keras模型，embedding_name
@@ -136,7 +143,7 @@ def adversarial_training(model, embedding_name, epsilon=1):
 
     # 封装为函数
     inputs = (
-        model._feed_inputs + model._feed_targets + model._feed_sample_weights
+            model._feed_inputs + model._feed_targets + model._feed_sample_weights
     )  # 所有输入层
     embedding_gradients = K.function(
         inputs=inputs,
@@ -146,7 +153,7 @@ def adversarial_training(model, embedding_name, epsilon=1):
 
     def train_function(inputs):  # 重新定义训练函数
         grads = embedding_gradients(inputs)[0]  # Embedding梯度
-        delta = epsilon * grads / (np.sqrt((grads**2).sum()) + 1e-8)  # 计算扰动
+        delta = epsilon * grads / (np.sqrt((grads ** 2).sum()) + 1e-8)  # 计算扰动
         K.set_value(embeddings, K.eval(embeddings) + delta)  # 注入扰动
         outputs = old_train_function(inputs)  # 梯度下降
         K.set_value(embeddings, K.eval(embeddings) - delta)  # 删除扰动
@@ -156,11 +163,10 @@ def adversarial_training(model, embedding_name, epsilon=1):
 
 
 def do_train(mode='bert', filename='roberta', lastfour=False, LR=1e-5, DR=0.2, ext=False, batch_size=16):
-
     skf = StratifiedKFold(5, shuffle=True, random_state=2020)
     nfold = 1
 
-    if(ext):
+    if (ext):
         data = np.concatenate([train_ext_data, valid_data], axis=0)
     else:
         data = np.concatenate([train_data, valid_data], axis=0)
@@ -179,9 +185,10 @@ def do_train(mode='bert', filename='roberta', lastfour=False, LR=1e-5, DR=0.2, e
 
         early_stopping = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
 
-        if(ext):
-            checkpoint = ModelCheckpoint('../user_data/model_data/' + filename + '_weights/' + str(nfold) + '_ext.weights',
-                                         monitor='val_loss', save_weights_only=True, save_best_only=True, verbose=1)
+        if (ext):
+            checkpoint = ModelCheckpoint(
+                '../user_data/model_data/' + filename + '_weights/' + str(nfold) + '_ext.weights',
+                monitor='val_loss', save_weights_only=True, save_best_only=True, verbose=1)
         else:
             checkpoint = ModelCheckpoint('../user_data/model_data/' + filename + '_weights/' + str(nfold) + '.weights',
                                          monitor='val_loss', save_weights_only=True, save_best_only=True, verbose=1)
@@ -200,13 +207,13 @@ def do_train(mode='bert', filename='roberta', lastfour=False, LR=1e-5, DR=0.2, e
         nfold += 1
 
 
-model = build_model(mode='bert',filename='bert',lastfour=False)
-do_train(mode='bert',filename='bert',lastfour=False,LR=1e-5)
-do_train(mode='bert',filename='bert',lastfour=False,LR=1e-5,ext=True)
+model = build_model(mode='bert', filename='bert', lastfour=False)
+do_train(mode='bert', filename='bert', lastfour=False, LR=1e-5)
+do_train(mode='bert', filename='bert', lastfour=False, LR=1e-5, ext=True)
 
-model = build_model(mode='bert',filename='ernie',lastfour=False)
-do_train(mode='bert',filename='ernie',lastfour=False,LR=1e-5)
-do_train(mode='bert',filename='ernie',lastfour=False,LR=1e-5,ext=True)
+model = build_model(mode='bert', filename='ernie', lastfour=False)
+do_train(mode='bert', filename='ernie', lastfour=False, LR=1e-5)
+do_train(mode='bert', filename='ernie', lastfour=False, LR=1e-5, ext=True)
 
-model = build_model(mode='bert',filename='roberta',lastfour=False)
-do_train(mode='bert',filename='roberta',lastfour=False,LR=1e-6,batch_size=8)
+model = build_model(mode='bert', filename='roberta', lastfour=False)
+do_train(mode='bert', filename='roberta', lastfour=False, LR=1e-6, batch_size=8)
