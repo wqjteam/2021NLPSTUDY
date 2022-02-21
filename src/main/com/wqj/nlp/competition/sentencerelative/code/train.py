@@ -1,17 +1,14 @@
 import numpy as np
 import pandas as pd
-import os
-from keras.layers import *
-from keras.models import Model
-from keras.callbacks import ModelCheckpoint, EarlyStopping
-from bert4keras.backend import keras, K, search_layer
-from bert4keras.bert import build_bert_model
-from bert4keras.tokenizer import Tokenizer
+from bert4keras.backend import K, search_layer
+from bert4keras.models import build_transformer_model
 from bert4keras.optimizers import Adam
 from bert4keras.snippets import sequence_padding
+from bert4keras.tokenizers import Tokenizer
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.layers import *
+from keras.models import Model
 from sklearn.model_selection import StratifiedKFold
-import Levenshtein
-import datetime
 
 np.random.seed(2020)
 
@@ -38,7 +35,7 @@ def build_model(mode='bert', filename='bert', lastfour=False, LR=1e-5, DR=0.2):
     global tokenizer
     tokenizer = Tokenizer(dict_path, do_lower_case=True)
 
-    bert = build_bert_model(
+    bert = build_transformer_model(
         config_path=config_path,
         checkpoint_path=checkpoint_path,
         with_pool=True,

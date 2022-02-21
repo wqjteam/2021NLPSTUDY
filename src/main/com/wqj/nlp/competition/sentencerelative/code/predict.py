@@ -5,8 +5,8 @@ from keras.layers import *
 from keras.models import Model
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from bert4keras.backend import keras, K
-from bert4keras.bert import build_bert_model
-from bert4keras.tokenizer import Tokenizer
+from bert4keras.models import *
+from bert4keras.tokenizers import Tokenizer
 from bert4keras.optimizers import Adam
 from bert4keras.snippets import sequence_padding
 from sklearn.model_selection import StratifiedKFold
@@ -20,23 +20,24 @@ valid_df = pd.read_csv('../data/Dataset/dev.csv')
 test_df = pd.read_csv('../data/Dataset/test.csv')
 train_ext_df = pd.read_csv('../data/External/chip2019.csv')
 
-train_df.dropna(axis=0,inplace=True)
+train_df.dropna(axis=0, inplace=True)
 
-train_data = train_df[['query1','query2','label']].values
-valid_data = valid_df[['query1','query2','label']].values
-test_data = test_df[['query1','query2','label']].values
-train_ext_data = train_ext_df[['question1','question2','label']].values
+train_data = train_df[['query1', 'query2', 'label']].values
+valid_data = valid_df[['query1', 'query2', 'label']].values
+test_data = test_df[['query1', 'query2', 'label']].values
+train_ext_data = train_ext_df[['question1', 'question2', 'label']].values
+
 
 def build_model(mode='bert', filename='bert', lastfour=False, LR=1e-5, DR=0.2):
-    path = '../data/External/'+filename+'/'
-    config_path = path+'bert_config.json'
-    checkpoint_path = path+'bert_model.ckpt'
-    dict_path = path+'vocab.txt'
+    path = '../data/External/' + filename + '/'
+    config_path = path + 'bert_config.json'
+    checkpoint_path = path + 'bert_model.ckpt'
+    dict_path = path + 'vocab.txt'
 
     global tokenizer
     tokenizer = Tokenizer(dict_path, do_lower_case=True)
 
-    bert = build_bert_model(
+    bert = build_transformer_model(
         config_path=config_path,
         checkpoint_path=checkpoint_path,
         with_pool=True,
@@ -77,6 +78,7 @@ def build_model(mode='bert', filename='bert', lastfour=False, LR=1e-5, DR=0.2):
         metrics=['accuracy'],
     )
     return model
+
 
 class data_generator(object):
     def __init__(self, data, batch_size=32, random=True):
@@ -122,47 +124,46 @@ test_generator = data_generator(test_data, batch_size, random=False)
 
 
 def f(x):
-    res=1/(1+np.e**(-x))
+    res = 1 / (1 + np.e ** (-x))
     return res
 
+
 def f_ver(x):
-    res=np.log(x/(1-x))
+    res = np.log(x / (1 - x))
     return res
+
 
 def do_predict(fileDir):
     res = []
     fileList = os.listdir(fileDir)
     for file in fileList:
-        model.load_weights(fileDir+'/'+file)
-        print('predicting on '+fileDir+'/'+file)
+        model.load_weights(fileDir + '/' + file)
+        print('predicting on ' + fileDir + '/' + file)
         pred = model.predict_generator(test_generator.forfit(), steps=len(test_generator))
         res.append(pred)
-    s = np.zeros_like(res[0])#(N,2)
+    s = np.zeros_like(res[0])  # (N,2)
     for i in res:
-        s += f_ver(i)/len(res)
+        s += f_ver(i) / len(res)
     s = f(s)
-    s = s[:,1]
+    s = s[:, 1]
     return s
 
 
-model = build_model(mode='bert',filename='bert',lastfour=False)
+model = build_model(mode='bert', filename='bert', lastfour=False)
 res1 = do_predict('../user_data/model_data/bert_weights')
 
-model = build_model(mode='bert',filename='ernie',lastfour=False)
+model = build_model(mode='bert', filename='ernie', lastfour=False)
 res2 = do_predict('../user_data/model_data/ernie_weights')
 
-
-model = build_model(mode='bert',filename='roberta',lastfour=False)
+model = build_model(mode='bert', filename='roberta', lastfour=False)
 res3 = do_predict('../user_data/model_data/roberta_weights')
 
-
-res = f((2.025*f_ver(res1) + 2.025*f_ver(res2) + 1.95*f_ver(res3))/6)
+res = f((2.025 * f_ver(res1) + 2.025 * f_ver(res2) + 1.95 * f_ver(res3)) / 6)
 
 alpha = 0.47
 
-test_data[:,2] = (res>=alpha).astype('int')
-train_data = np.concatenate([train_data,test_data],axis=0)
-
+test_data[:, 2] = (res >= alpha).astype('int')
+train_data = np.concatenate([train_data, test_data], axis=0)
 
 model = build_model(mode='bert', filename='bert', LR=1e-6)
 early_stopping = EarlyStopping(monitor='val_loss', patience=1, verbose=1)
@@ -175,19 +176,19 @@ model.fit_generator(train_generator.forfit(),
                     verbose=2,
                     )
 pred_pl = model.predict_generator(test_generator.forfit(), steps=len(test_generator))
-pred_pl = pred_pl[:,1]
+pred_pl = pred_pl[:, 1]
 
-
-pred = res*0.8 + pred_pl*0.2
-pred = (pred>=alpha).astype('int')
+pred = res * 0.8 + pred_pl * 0.2
+pred = (pred >= alpha).astype('int')
 
 for i in range(len(test_data)):
     d = test_data[i]
     texta = d[0]
     textb = d[1]
-    if Levenshtein.distance(texta,textb) == 0:
+    if Levenshtein.distance(texta, textb) == 0:
         pred[i] = 1
 
 test_df['label'] = pred
-sub = test_df[['id','label']]
-sub.to_csv(("../prediction_result/result_"+datetime.datetime.now().strftime('%Y%m%d_%H%M%S') + ".csv"), header=None, index=False)
+sub = test_df[['id', 'label']]
+sub.to_csv(("../prediction_result/result_" + datetime.datetime.now().strftime('%Y%m%d_%H%M%S') + ".csv"), header=None,
+           index=False)
